@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 bot = commands.Bot(
-  command_prefix = "demo.",
+  command_prefix = "demo.test.",
   intents = discord.Intents.all(),
   help_command = None
 )
