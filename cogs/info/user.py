@@ -5,6 +5,7 @@ from discord.ext import commands
 
 async def get_profile(interaction : discord.Interaction, member : discord.Member):
   user = await interaction.client.fetch_user(member.id)
+  member = interaction.guild.get_member(member.id)
   custom_activity = ""
   for activity in member.activities:
     if isinstance(activity, discord.CustomActivity):
@@ -113,9 +114,147 @@ async def get_profile(interaction : discord.Interaction, member : discord.Member
     )
   return embed_profile
 
+async def get_avatar(interaction : discord.Interaction, member : discord.Member):
+  embed_avatar = discord.Embed(
+    title = member.name,
+    color = 0x2b2d31
+  ).set_image(
+    url = member.display_avatar
+  ).set_footer(
+    text = f"User ID : {member.id}"
+  )
+  return embed_avatar
+
+async def get_banner(interaction : discord.Interaction, member : discord.Member):
+  embed_banner = discord.Embed(
+    title = member.name,
+    color = 0x2b2d31
+  ).set_image(
+    url = member.banner.url
+  ).set_footer(
+    text = f"User ID : {member.id}"
+  )
+  return embed_banner
+
+class ViewSelect(ui.Select):
+  def __init__(self, user : discord.Member, member : discord.Member):
+    self.user = user
+    self.member = member
+    super().__init__(
+      custom_id = "view.select",
+      placeholder = "Select a property :",
+      min_values = 1,
+      max_values = 1,
+      options = [
+        discord.SelectOption(
+          label = "Profile",
+          value = "user.profile",
+          description = f"View {self.member.name if self.member else ""}'s profile",
+          default = True
+        ),
+        discord.SelectOption(
+          label = "Avatar",
+          value = "user.avatar",
+          description = f"View {self.member.name if self.member else ""}'s avatar"
+        )
+      ]
+    )
+    if self.member and self.member.banner:
+      self.options.append(
+        discord.SelectOption(
+          label = "Banner",
+          value = "user.banner",
+          description = f"View {self.member.name if self.member else ""}'s banner"
+        )
+      )
+
+  async def callback(self, interaction : discord.Interaction):
+    try:
+      response = interaction.response
+      await response.defer(
+        thinking = False,
+        ephemeral = False
+      )
+      if interaction.user != self.user:
+        err = discord.Embed(
+          description = "This is not your menu !",
+          color = 0xff3131
+        ).set_author(
+          name = interaction.client.user.name,
+          icon_url = interaction.client.user.display_avatar
+        )
+        await response.send_message(
+          embed = err,
+          ephemeral = True
+        )
+        return
+      if self.values[0] == "user.profile":
+        embed = await get_profile(interaction, self.member)
+        for ind, option in enumerate(self.options):
+          if option.value != "user.profile":
+            self.options[ind].default = False
+          else:
+            self.options[ind].default = True
+        await interaction.edit_original_response(
+          embed = embed,
+          view = self.view
+        )
+        return
+      if self.values[0] == "user.avatar":
+        embed = await get_avatar(interaction, self.member)
+        for ind, option in enumerate(self.options):
+          if option.value != "user.avatar":
+            self.options[ind].default = False
+          else:
+            self.options[ind].default = True
+        await interaction.edit_original_response(
+          embed = embed,
+          view = self.view
+        )
+      if self.values[0] == "user.banner":
+        embed = await get_banner(interaction, self.member)
+        for ind, option in enumerate(self.options):
+          if option.value != "user.banner":
+            self.options[ind].default = False
+          else:
+            self.options[ind].default = True
+        await interaction.edit_original_response(
+          embed = embed,
+          view = self.view
+        )
+    except:
+      traceback.print_exc()
+
+class View(ui.View):
+  def __init__(self, user : discord.Member, member : discord.Member):
+    super().__init__(
+      timeout = None
+    )
+    self.user = user
+    self.member = member
+    self.add_item(ViewSelect(user, member))
+
+  async def interaction_check(self, interaction : discord.Interaction):
+    response = interaction.response
+    if interaction.user != self.user:
+      err = discord.Embed(
+        description = "This is not your menu !",
+        color = 0xff3131
+      ).set_author(
+        name = interaction.client.user.name,
+        icon_url = interaction.client.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return False
+    return True
+
 class User(commands.GroupCog, name = "user", description = "/user"):
   def __init__(self, bot):
     self.bot = bot
+    self.bot.add_view(View(None, None))
 
   @app_commands.command(
     name = "profile",
@@ -133,9 +272,11 @@ class User(commands.GroupCog, name = "user", description = "/user"):
     followup = interaction.followup
     member_id = interaction.user.id if not member else member.id
     member = interaction.guild.get_member(member_id)
+    user = await self.bot.fetch_user(member.id)
     embed_profile = await get_profile(interaction, member)
     await followup.send(
-      embed = embed_profile
+      embed = embed_profile,
+      view = View(interaction.user, user)
     )
 
   @user_profile.error
