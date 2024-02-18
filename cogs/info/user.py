@@ -255,23 +255,20 @@ class User(commands.GroupCog, name = "user", description = "/user"):
   def __init__(self, bot):
     self.bot = bot
     self.bot.add_view(View(None, None))
+    self.info_context_menu = app_commands.ContextMenu(
+      name = "User Info",
+      callback = self.command_callback
+    )
+    self.bot.tree.add_command(self.info_context_menu)
 
-  @app_commands.command(
-    name = "profile",
-    description = "View a member's profile"
-  )
-  @app_commands.describe(
-    member = "Select another member"
-  )
-  async def user_profile(self, interaction : discord.Interaction, member : discord.Member = None):
+  async def command_callback(self, interaction : discord.Interaction, member : discord.Member):
     response = interaction.response
     await response.defer(
       thinking = True,
       ephemeral = True
     )
     followup = interaction.followup
-    member_id = interaction.user.id if not member else member.id
-    member = interaction.guild.get_member(member_id)
+    member = interaction.guild.get_member(member.id)
     user = await self.bot.fetch_user(member.id)
     embed_profile = await get_profile(interaction, member)
     await followup.send(
@@ -279,7 +276,17 @@ class User(commands.GroupCog, name = "user", description = "/user"):
       view = View(interaction.user, user)
     )
 
-  @user_profile.error
+  @app_commands.command(
+    name = "info",
+    description = "View a member's info"
+  )
+  @app_commands.describe(
+    member = "Select another member"
+  )
+  async def user_info(self, interaction : discord.Interaction, member : discord.Member = None):
+    await self.command_callback(interaction, member if member else interaction.user)
+
+  @user_info.error
   async def error(self, interaction : discord.Interaction, error):
     traceback.print_exc()
 
