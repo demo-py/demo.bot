@@ -22,8 +22,9 @@ class Sync(commands.Cog):
           successful_syncs.append(guild_id)
         except:
           continue
+      synced_guilds = "\n".join([f"> ` {guild_id} `" for guild_id in successful_syncs])
       embed = discord.Embed(
-        description = f"Successfully synced app commands to the following guild(s) :\n{"\n".join([f"> ` {guild_id} `" for guild_id in successful_syncs])}",
+        description = f"Successfully synced app commands to the following guild(s) :\n{synced_guilds}",
         color = 0x39ff14
       )
     else:
