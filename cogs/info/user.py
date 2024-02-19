@@ -21,7 +21,7 @@ async def get_profile(interaction : discord.Interaction, member : discord.Member
             activity_emoji = activity.emoji
         else:
           activity_emoji = ""
-        custom_activity = f"\n\n> {activity_emoji} {activity.name if activity.name else ""}"
+        custom_activity = f"\n\n> {activity_emoji} {activity.name if activity.name else ''}"
   flags = []
   if member.desktop_status not in [discord.Status.offline, discord.Status.invisible]:
     if member.desktop_status == discord.Status.online:
@@ -136,6 +136,23 @@ async def get_banner(interaction : discord.Interaction, member : discord.Member)
   )
   return embed_banner
 
+async def ban_user(interaction : discord.Interaction, member : discord.Member, reason : str):
+  await member.ban(
+    delete_message_days = 7,
+    reason = reason
+  )
+  embed = discord.Embed(
+    description = f"Successfully banned ` {member.name} `",
+    color = 0x39ff14
+  ).set_author(
+    name = self.bot.user.name,
+    icon_url = self.bot.user.display_avatar
+  )
+  await interaction.response.edit_message(
+    embed = embed,
+    view = None
+  )
+
 class ViewSelect(ui.Select):
   def __init__(self, user : discord.Member, member : discord.Member):
     self.user = user
@@ -149,13 +166,13 @@ class ViewSelect(ui.Select):
         discord.SelectOption(
           label = "Profile",
           value = "user.profile",
-          description = f"View {self.member.name if self.member else ""}'s profile",
+          description = f"View {self.member.name if self.member else ''}'s profile",
           default = True
         ),
         discord.SelectOption(
           label = "Avatar",
           value = "user.avatar",
-          description = f"View {self.member.name if self.member else ""}'s avatar"
+          description = f"View {self.member.name if self.member else ''}'s avatar"
         )
       ]
     )
@@ -164,7 +181,7 @@ class ViewSelect(ui.Select):
         discord.SelectOption(
           label = "Banner",
           value = "user.banner",
-          description = f"View {self.member.name if self.member else ""}'s banner"
+          description = f"View {self.member.name if self.member else ''}'s banner"
         )
       )
 
@@ -251,6 +268,41 @@ class View(ui.View):
       return False
     return True
 
+class BanConfirmationView(ui.View):
+  def __init__(self, member : discord.Member, reason : str):
+    super().__init__(
+      timeout = None
+    )
+    self.member = member
+    self.reason = reason
+
+  @ui.button(
+    label = "Confirm",
+    style = discord.ButtonStyle.green
+  )
+  async def confirm_button(self, interaction : discord.Interaction, button : ui.Button):
+    await ban_user(interaction, self.member, self.reason)
+
+  @ui.button(
+    label = "Cancel",
+    style = discord.ButtonStyle.red
+  )
+  async def cancel_button(self, interaction : discord.Interaction, button : ui.Button):
+    embed = discord.Embed(
+      description = "Cancelled the action",
+      color = 0xff3131
+    ).set_author(
+      name = interaction.client.user.name,
+      icon_url = interaction.client.user.display_avatar
+    )
+    await interaction.response.edit_message(
+      embed = embed,
+      view = None
+    )
+
+  async def on_error(self, interaction : discord.Interaction, error):
+    traceback.print_exc()
+
 class User(commands.GroupCog, name = "user", description = "/user"):
   def __init__(self, bot):
     self.bot = bot
@@ -276,6 +328,73 @@ class User(commands.GroupCog, name = "user", description = "/user"):
       view = View(interaction.user, user)
     )
 
+  async def ban(self, interaction : discord.Interaction, member : discord.Member, reason : str):
+    response = interaction.response
+    if member == interaction.guild.owner:
+      err = discord.Embed(
+        description = "You cannot ban a Guild Owner",
+        color = 0xff3131
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
+    if member == interaction.user:
+      err = discord.Embed(
+        description = "You cannot ban yourself",
+        color = 0xff3131
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
+    if member == self.bot.user:
+      err = discord.Embed(
+        description = "I am unable to ban myself",
+        color = 0xff3131
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
+    if member.bot:
+      err = discord.Embed(
+        description = "I am unable to ban bots",
+        color = 0xff3131
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
+    embed = discord.Embed(
+      description = f"Are you sure you want to **ban** {member.mention}",
+      color = 0xffff00
+    ).set_author(
+      name = self.bot.user.name,
+      icon_url = self.bot.user.display_avatar
+    )
+    await interaction.response.send_message(
+      embed = embed,
+      view = BanConfirmationView(member, reason),
+      ephemeral = True
+    )
+
   @app_commands.command(
     name = "info",
     description = "View a member's info"
@@ -286,8 +405,40 @@ class User(commands.GroupCog, name = "user", description = "/user"):
   async def user_info(self, interaction : discord.Interaction, member : discord.Member = None):
     await self.command_callback(interaction, member if member else interaction.user)
 
+  @app_commands.command(
+    name = "ban",
+    description = "Ban a member"
+  )
+  @app_commands.describe(
+    member = "Select a member to ban",
+    reason = "Reason for banning the member"
+  )
+  @app_commands.checks.has_permissions(
+    ban_members = True
+  )
+  @app_commands.default_permissions(
+    ban_members = True
+  )
+  async def user_ban(self, interaction : discord.Interaction, member : discord.Member, reason : str = "No reason provided"):
+    await self.ban(interaction, member, reason)
+
   @user_info.error
+  @user_ban.error
   async def error(self, interaction : discord.Interaction, error):
+    if isinstance(error, app_commands.MissingPermissions):
+      missing_permissions = "\n".join([f"> ` {permission.title()} `" for permission in error.missing_permissions])
+      err = discord.Embed(
+        description = f"You are missing the following permissions to execute this command :\n{missing_permissions}",
+        color = 0xff3131
+      ).set_author(
+        name = interaction.client.user.name,
+        icon_url = interaction.client.user.display_avatar
+      )
+      await interaction.response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
     traceback.print_exc()
 
 async def setup(bot):
