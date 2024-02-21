@@ -303,6 +303,55 @@ class BanConfirmationView(ui.View):
   async def on_error(self, interaction : discord.Interaction, error):
     traceback.print_exc()
 
+class BanReason(ui.Modal):
+  def __init__(self, member : discord.Member):
+    super().__init__(
+      timeout = None,
+      title = "User Ban"
+    )
+    self.member = member
+    self.reason = ui.TextInput(
+      label = f"Reason for banning {member.name}. Leave blank if None",
+      style = discord.TextStyle.long,
+      required = False
+    )
+    self.add_item(self.reason)
+
+  async def on_submit(self, interaction : discord.Interaction):
+    reason = str(self.reason) if str(self.reason) != "" else "` No reason provided `"
+    embed = discord.Embed(
+      description = f"Are you sure you want to **ban** {self.member.mention}",
+      color = 0xffff00
+    ).set_author(
+      name = interaction.client.user.name,
+      icon_url = interaction.client.user.display_avatar
+    )
+    await interaction.response.edit_message(
+      embed = embed,
+      view = BanConfirmationView(member, reason)
+    )
+
+class ModerateSelect(ui.Select):
+  def __init__(self, member : discord.Member):
+    super().__init__(
+      placeholder = "Select a moderation action :",
+      custom_id = "user.moderate.select",
+      min_values = 1,
+      max_values = 1,
+      options = [
+        discord.SelectOption(
+          label = "Ban",
+          value = "user.ban"
+        )
+      ]
+    )
+    self.member = member
+
+  async def callback(self, interaction : discord.Interaction):
+    response = interaction.response
+    if self.values[0] == "user.ban":
+      await response.send_modal(BanReason(self.member))
+
 class User(commands.GroupCog, name = "user", description = "/user"):
   def __init__(self, bot):
     self.bot = bot
@@ -312,6 +361,11 @@ class User(commands.GroupCog, name = "user", description = "/user"):
       callback = self.command_callback
     )
     self.bot.tree.add_command(self.info_context_menu)
+    self.ban_context_menu = app_commands.ContextMenu(
+      name = "User Moderate",
+      callback = self.moderate_callback
+    )
+    self.bot.tree.add_command(self.ban_context_menu)
 
   async def command_callback(self, interaction : discord.Interaction, member : discord.Member):
     response = interaction.response
@@ -326,6 +380,65 @@ class User(commands.GroupCog, name = "user", description = "/user"):
     await followup.send(
       embed = embed_profile,
       view = View(interaction.user, user)
+    )
+
+  async def moderate_callback(self, interaction : discord.Interaction, member ; discord.Member):
+    response = interaction.response
+    if member == interaction.guild.owner:
+      err = discord.Embed(
+        description = "You cannot ban a Guild Owner",
+        color = 0xff3131
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
+    if member == interaction.user:
+      err = discord.Embed(
+        description = "You cannot ban yourself",
+        color = 0xff3131
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
+    if member == self.bot.user:
+      err = discord.Embed(
+        description = "I am unable to ban myself",
+        color = 0xff3131
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
+    if member.bot:
+      err = discord.Embed(
+        description = "I am unable to ban bots",
+        color = 0xff3131
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
+    await response.send_message(
+      view = ui.View().add_item(ModerateSelect(member)),
+      ephemeral = True
     )
 
   async def ban(self, interaction : discord.Interaction, member : discord.Member, reason : str):
