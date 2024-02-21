@@ -366,7 +366,7 @@ class KickReason(ui.Modal):
       value = f"> {reason}",
       inline = False
     )
-    await interaction.response.send_message(
+    await interaction.response.edit_message(
       embed = embed,
       ephemeral = True
     )
@@ -422,6 +422,173 @@ class MemberTimeout(ui.Modal):
     self.add_item(self.minutes)
     self.add_item(self.hours)
     self.add_item(self.days)
+
+  async def on_submit(self, interaction : discord.Interaction):
+    try:
+      response = interaction.response
+      try:
+        seconds = int(str(self.seconds))
+        if seconds < 0 or seconds > 60:
+          err = discord.Embed(
+            description = "` seconds ` must be between ` 0 ` and ` 60 `",
+            color = 0xff3131
+          ).set_author(
+            name = interaction.client.user.name,
+            icon_url = interaction.client.user.display_avatar
+          )
+          await response.send_message(
+            embed = err,
+            ephemeral = True
+          )
+          return
+      except:
+        err = discord.Embed(
+          description = "` seconds ` must take an input of ` int `",
+          color = 0xff3131
+        ).set_author(
+          name = interaction.client.user.name,
+          icon_url = interaction.client.user.display_avatar
+        )
+        await response.send_message(
+          embed = err,
+          ephemeral = True
+        )
+        return
+      try:
+        minutes = int(str(self.minutes))
+        if minutes < 0 and minutes > 60:
+          err = discord.Embed(
+            description = "` minutes ` must be between ` 0 ` and ` 60 `",
+            color = 0xff3131
+          ).set_author(
+            name = interaction.client.user.name,
+            icon_url = interaction.client.user.display_avatar
+          )
+          await response.send_message(
+            embed = err,
+            ephemeral = True
+          )
+          return
+      except:
+        err = discord.Embed(
+          description = "` minutes ` must take an input of ` int `",
+          color = 0xff3131
+        ).set_author(
+          name = interaction.client.user.name,
+          icon_url = interaction.client.user.display_avatar
+        )
+        await response.send_message(
+          embed = err,
+          ephemeral = True
+        )
+        return
+      try:
+        hours = int(str(self.hours))
+        if hours < 0 or hours > 24:
+          err = discord.Embed(
+            description = "` hours ` must be between ` 0 ` and ` 24 `",
+            color = 0xff3131
+          ).set_author(
+            name = interaction.client.user.name,
+            icon_url = interaction.client.user.display_avatar
+          )
+          await response.send_message(
+            embed = err,
+            ephemeral = True
+          )
+          return
+      except:
+        err = discord.Embed(
+          description = "` hours ` must take an input of ` int `",
+          color = 0xff3131
+        ).set_author(
+          name = interaction.client.user.name,
+          icon_url = interaction.client.user.display_avatar
+        )
+        await response.send_message(
+          embed = err,
+          ephemeral = True
+        )
+        return
+      try:
+        days = int(str(self.days))
+        if days < 0 or days > 28:
+          err = discord.Embed(
+            description = "` days ` must be between ` 0 ` and ` 28 `",
+            color = 0xff3131
+          ).set_author(
+            name = interaction.client.user.name,
+            icon_url = interaction.client.user.display_avatar
+          )
+          await response.send_message(
+            embed = err,
+            ephemeral = True
+          )
+          return
+      except:
+        err = discord.Embed(
+          description = "` days ` must take an input of ` int `",
+          color = 0xff3131
+        ).set_author(
+          name = interaction.client.user.name,
+          icon_url = interaction.client.user.display_avatar
+        )
+        await response.send_message(
+          embed = err,
+          ephemeral = True
+        )
+        return
+      duration = timedelta(
+        seconds = seconds,
+        minutes = minutes,
+        hours = hours,
+        days = days
+      )
+      if int(duration.total_seconds()) == 0:
+        embed = discord.Embed(
+          description = f"Successfully removed {self.member.mention}'s timeout",
+          color = 0xff3131
+        ).set_author(
+          name = interaction.client.user.name,
+          icon_url = interaction.client.user.display_avatar
+        )
+        await self.member.timeout(
+          None
+        )
+        await response.send_message(
+          embed = embed,
+          ephemeral = True
+        )
+        return
+      if duration.days > 28:
+        err = discord.Embed(
+          description = "You can only timeout a member for 28 days maximum",
+          color = 0xff3131
+        ).set_author(
+          name = interaction.client.user.name,
+          icon_url = interaction.client.user.display_avatar
+        )
+        await response.send_message(
+          embed = err,
+          ephemeral = True
+        )
+        return
+      expires = datetime.today() + duration
+      embed = discord.Embed(
+        description = f"Successfully timed out {self.member.mention}. The timeout expires <t:{int(expires.timestamp())}:R>",
+        color = 0x39ff14
+      ).set_author(
+        name = interaction.client.user.name,
+        icon_url = interaction.client.user.display_avatar
+      )
+      await self.member.timeout(
+        duration
+      )
+      await response.edit_message(
+        embed = embed
+      )
+    except:
+      traceback.print_exc()
 
 class ModerateSelect(ui.Select):
   def __init__(self, member : discord.Member):
