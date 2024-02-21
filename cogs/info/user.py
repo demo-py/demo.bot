@@ -1,5 +1,6 @@
 import discord
 import traceback
+from datetime import datetime, timedelta
 from discord import app_commands, ui
 from discord.ext import commands
 
@@ -667,9 +668,141 @@ class User(commands.GroupCog, name = "user", description = "/user"):
       ephemeral = True
     )
 
+  @app_commands.command(
+    name = "timeout",
+    description = "Timeout a member. Defaults to 60 seconds"
+  )
+  @app_commands.describe(
+    member = "Select a member to timeout",
+    days = "Amount of days to timeout the member. Defaults to 0",
+    hours = "Amount of hours to timeout the member. Defaults to 0",
+    minutes = "Amount of minutes to timeout the member. Defaults to 0",
+    seconds = "Amount of seconds to timeout the member. Defaults to 60"
+  )
+  @app_commands.checks.has_permissions(
+    moderate_members = True
+  )
+  @app_commands.default_permissions(
+    moderate_members = True
+  )
+  async def user_timeout(
+    self,
+    interaction : discord.Interaction,
+    member : discord.Member,
+    seconds : app_commands.Range[int, 0, 86400] = 60,
+    minutes : app_commands.Range[int, 0, 1440] = 0,
+    hours : app_commands.Range[int, 0, 24] = 24,
+    days : app_commands.Range[int, 0, 28] = 0
+  ):
+    response = interaction.response
+    user = interaction.user
+    if member == interaction.guild.owner:
+      err = discord.Embed(
+        description = "Unable to timeout a Guild Owner",
+        color = 0xff3131
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
+    if member.bot:
+      err = discord.Embed(
+        description = "Unable to timeout a bot",
+        color = 0xff3131
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
+    if member == self.bot.user:
+      err = discord.Embed(
+        description = "Unable to timeout myself",
+        color = 0xff3131
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
+    if member == user:
+      err = discord.Embed(
+        description = "Unable to timeout yourself",
+        color = 0xff3131
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
+    duration = timedelta(
+      seconds = seconds,
+      minutes = minutes,
+      hours = hours,
+      days = days
+    )
+    if int(duration.total_seconds()) == 0:
+      embed = discord.Embed(
+        description = f"Successfully removed {member.mention}'s timeout",
+        color = 0x39ff14
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await member.timeout(
+        None
+      )
+      await response.send_message(
+        embed = embed,
+        ephemeral = True
+      )
+      return
+    if duration.days > 28:
+      err = discord.Embed(
+        description = "You can only timeout a member for 28 days maximum",
+        color = 0x39ff14
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
+    expires = datetime.now() + duration
+    embed = discord.Embed(
+      description = f"Successfully timed out {member.mention}. The timeout will expire <t:{int(expires.timestamp())}:R>",
+      color = 0x39ff14
+    ).set_author(
+      name = self.bot.user.name,
+      icon_url = self.bot.user.display_avatar
+    )
+    await member.timeout(
+      duration
+    )
+    await response.send_message(
+      embed = embed,
+      ephemeral = True
+    )
+
   @user_info.error
   @user_ban.error
   @user_kick.error
+  @user_timeout.error
   async def error(self, interaction : discord.Interaction, error):
     if isinstance(error, app_commands.MissingPermissions):
       missing_permissions = "\n".join([f"> ` {permission.title()} `" for permission in error.missing_permissions])
