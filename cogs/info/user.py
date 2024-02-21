@@ -371,6 +371,58 @@ class KickReason(ui.Modal):
       ephemeral = True
     )
 
+class MemberTimeout(ui.Modal):
+  def __init__(self, member : discord.Member):
+    self.member = member
+    super().__init__(
+      timoeut = None,
+      title = "User Timeout"
+    )
+    self.seconds = ui.TextInput(
+      label = "Seconds : 0 - 60",
+      custom_id = "user.timeout.seconds",
+      style = discord.TextStyle.short,
+      placeholder = "Amount of seconds to append to the duration",
+      default = "60",
+      required = True,
+      min_length = 1,
+      max_length = 2
+    )
+    self.minutes = ui.TextInput(
+      label = "Minutes : 0 - 60",
+      custom_id = "user.timeout.minutes",
+      style = discord.TextStyle.short,
+      placeholder = "Amount of seconds to append to the duration",
+      default = "0",
+      required = True,
+      min_length = 1,
+      max_length = 2
+    )
+    self.hours = ui.TextInput(
+      label = "Hours : 0 - 24",
+      custom_id = "user.timeout.hours",
+      style = discord.TexStyle.short,
+      placeholder = "Amount of hours to append to the duration",
+      default = "0",
+      required = True,
+      min_length = 1,
+      max_length = 2
+    )
+    self.days = ui.TextInput(
+      label = "Days : 0 - 28",
+      custom_id = "user.timeout.days",
+      style = discord.TextStyle.short,
+      placeholder = "Amount of days to append to the duration",
+      default = "0",
+      required = True,
+      min_length = 1,
+      max_length = 2
+    )
+    self.add_item(self.seconds)
+    self.add_item(self.minutes)
+    self.add_item(self.hours)
+    self.add_item(self.days)
+
 class ModerateSelect(ui.Select):
   def __init__(self, member : discord.Member):
     super().__init__(
@@ -386,6 +438,10 @@ class ModerateSelect(ui.Select):
         discord.SelectOption(
           label = "Kick",
           value = "user.kick"
+        ),
+        discord.SelectOption(
+          label = "Timeout",
+          value = "user.timeout"
         )
       ]
     )
@@ -397,6 +453,8 @@ class ModerateSelect(ui.Select):
       await response.send_modal(BanReason(self.member))
     if self.values[0] == "user.kick":
       await response.send_modal(KickReason(self.member))
+    if self.values[0] == "user.timeout":
+      await response.send_modal(MemberTimeout(self.member))
 
 class User(commands.GroupCog, name = "user", description = "/user"):
   def __init__(self, bot):
@@ -689,8 +747,8 @@ class User(commands.GroupCog, name = "user", description = "/user"):
     self,
     interaction : discord.Interaction,
     member : discord.Member,
-    seconds : app_commands.Range[int, 0, 86400] = 60,
-    minutes : app_commands.Range[int, 0, 1440] = 0,
+    seconds : app_commands.Range[int, 0, 60] = 60,
+    minutes : app_commands.Range[int, 0, 60] = 0,
     hours : app_commands.Range[int, 0, 24] = 24,
     days : app_commands.Range[int, 0, 28] = 0
   ):
