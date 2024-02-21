@@ -93,13 +93,16 @@ async def get_profile(interaction : discord.Interaction, member : discord.Member
     emoji = interaction.client.get_emoji(1170282121080868914)
     flags.append(str(emoji))
   member_flags = " ".join(flags)
+  timed_out_until = ""
+  if member.is_timed_out():
+    timed_out_until = f"\n**Timed Out Until** : <t:{int(member.timed_out_until.timestamp())}:R>"
   embed_profile = discord.Embed(
     title = member.name,
     description = f"""
     **Member** : {member.mention} {member_flags}
     **Account Created** : <t:{int(member.created_at.timestamp())}:R>
     **Member Joined** : <t:{int(member.joined_at.timestamp())}:R>
-    **Member Roles** : ` {len(member.roles):,} `
+    **Member Roles** : ` {len(member.roles):,} `{timed_out_until}
     {custom_activity}
     """,
     color = member.color
