@@ -656,7 +656,7 @@ class User(commands.GroupCog, name = "user", description = "/user"):
       view = View(interaction.user, user)
     )
 
-  async def moderate_callback(self, interaction : discord.Interaction, member ; discord.Member):
+  async def moderate_callback(self, interaction : discord.Interaction, member : discord.Member):
     response = interaction.response
     if member == interaction.guild.owner:
       err = discord.Embed(
