@@ -145,8 +145,12 @@ async def ban_user(interaction : discord.Interaction, member : discord.Member, r
     description = f"Successfully banned ` {member.name} `",
     color = 0x39ff14
   ).set_author(
-    name = self.bot.user.name,
-    icon_url = self.bot.user.display_avatar
+    name = interaction.client.user.name,
+    icon_url = interaction.client.user.display_avatar
+  ).add_field(
+    name = "Reason :",
+    value = f"> {reason}",
+    inline = False
   )
   await interaction.response.edit_message(
     embed = embed,
@@ -331,6 +335,41 @@ class BanReason(ui.Modal):
       view = BanConfirmationView(member, reason)
     )
 
+class KickReason(ui.Modal):
+  def __init__(self, member : discord.Member):
+    super().__init__(
+      title = "User Kick",
+      timeout = None
+    )
+    self.member = member
+    self.reason = ui.TextInput(
+      label = f"Reason for kicking {member.name}. Leave blank if None",
+      style = discord.TextStyle.long,
+      required = False
+    )
+    self.add_item(self.reason)
+
+  async def on_submit(self, interaction : discord.Interaction):
+    reason = str(sefl.reason) if str(self.reason) != "" else "` No reason provided `"
+    await self.member.kick(
+      reason = reason
+    )
+    embed = discord.Embed(
+      description = f"Successfully kicked ` {self.member.name} `",
+      color = 0x39ff14
+    ).set_author(
+      name = interaction.client.user.name,
+      icon_url = interaction.client.user.display_avatar
+    ).add_field(
+      name = "Reason :",
+      value = f"> {reason}",
+      inline = False
+    )
+    await interaction.response.send_message(
+      embed = embed,
+      ephemeral = True
+    )
+
 class ModerateSelect(ui.Select):
   def __init__(self, member : discord.Member):
     super().__init__(
@@ -342,6 +381,10 @@ class ModerateSelect(ui.Select):
         discord.SelectOption(
           label = "Ban",
           value = "user.ban"
+        ),
+        discord.SelectOption(
+          label = "Kick",
+          value = "user.kick"
         )
       ]
     )
@@ -351,6 +394,8 @@ class ModerateSelect(ui.Select):
     response = interaction.response
     if self.values[0] == "user.ban":
       await response.send_modal(BanReason(self.member))
+    if self.values[0] == "user.kick":
+      await response.send_modal(KickReason(self.member))
 
 class User(commands.GroupCog, name = "user", description = "/user"):
   def __init__(self, bot):
@@ -361,11 +406,11 @@ class User(commands.GroupCog, name = "user", description = "/user"):
       callback = self.command_callback
     )
     self.bot.tree.add_command(self.info_context_menu)
-    self.ban_context_menu = app_commands.ContextMenu(
+    self.moderate_context_menu = app_commands.ContextMenu(
       name = "User Moderate",
       callback = self.moderate_callback
     )
-    self.bot.tree.add_command(self.ban_context_menu)
+    self.bot.tree.add_command(self.moderate_context_menu)
 
   async def command_callback(self, interaction : discord.Interaction, member : discord.Member):
     response = interaction.response
@@ -535,8 +580,96 @@ class User(commands.GroupCog, name = "user", description = "/user"):
   async def user_ban(self, interaction : discord.Interaction, member : discord.Member, reason : str = "No reason provided"):
     await self.ban(interaction, member, reason)
 
+  @app_commands.command(
+    name = "kick",
+    description = "Kick a member"
+  )
+  @app_commands.describe(
+    member = "Select a member to kick",
+    reason = "Reason for kicking the member"
+  )
+  @app_commands.checks.has_permissions(
+    kick_members = True
+  )
+  @app_commands.default_permissions(
+    kick_members = True
+  )
+  async def user_kick(self, interaction : discord.Interaction, member : discord.Member, reason : str = "No reason provided"):
+    response = interaction.response
+    if member == interaction.guild.owner:
+      err = discord.Embed(
+        description = "You cannot kick a Guild Owner",
+        color = 0xff3131
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
+    if member == interaction.user:
+      err = discord.Embed(
+        description = "You cannot kick yourself",
+        color = 0xff3131
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
+    if member == self.bot.user:
+      err = discord.Embed(
+        description = "I am unable to kick myself",
+        color = 0xff3131
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
+    if member.bot:
+      err = discord.Embed(
+        description = "I am unable to kick bots",
+        color = 0xff3131
+      ).set_author(
+        name = self.bot.user.name,
+        icon_url = self.bot.user.display_avatar
+      )
+      await response.send_message(
+        embed = err,
+        ephemeral = True
+      )
+      return
+    await member.kick(
+      reason = reason
+    )
+    embed = discord.Embed(
+      description = f"Successfully kicked ` {member.name} `",
+      color = 0x39ff14
+    ).set_author(
+      name = self.bot.user.name,
+      icon_url = self.bot.user.display_avatar
+    ).add_field(
+      name = "Reason :",
+      value = f"> {reason}",
+      inline = False
+    )
+    await response.send_message(
+      embed = embed,
+      ephemeral = True
+    )
+
   @user_info.error
   @user_ban.error
+  @user_kick.error
   async def error(self, interaction : discord.Interaction, error):
     if isinstance(error, app_commands.MissingPermissions):
       missing_permissions = "\n".join([f"> ` {permission.title()} `" for permission in error.missing_permissions])
