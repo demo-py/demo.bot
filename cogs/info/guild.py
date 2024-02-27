@@ -2,11 +2,12 @@ import discord
 import traceback
 from discord import app_commands, ui
 from discord.ext import commands
+from cogs.info.user import get_profile as get_owner
 
 async def get_profile(guild : discord.Guild):
   guild_description = ""
   if guild.description:
-    guild_description = f">>> {guild.description}"
+    guild_description = f"\n>>> {guild.description}"
   embed = discord.Embed(
     title = guild.name,
     description = f"""
@@ -53,6 +54,30 @@ async def get_profile(guild : discord.Guild):
     )
   return embed
 
+async def get_banner(guild : discord.Guild):
+  embed = discord.Embed(
+    title = guild.name,
+    color = 0x2b2d31
+  )
+  if guild.icon:
+    embed.set_humbnail(
+      url = guild.icon.url
+    )
+  if guild.banner:
+    embed.set_image(
+      url = guild.banner.url
+    )
+  return embed
+
+async def get_icon(guild : discord.Guild):
+  embed = discord.Embed(
+    title = guild.name,
+    color = 0x2b2d31
+  ).set_image(
+    url = guild.icon.url
+  )
+  return embed
+
 class GuildProfileSelect(ui.Select):
   def __init__(self, guild : discord.Guild):
     self.guild = guild
@@ -66,15 +91,63 @@ class GuildProfileSelect(ui.Select):
           label = "Guild Profile",
           value = "guild.profile",
           default = True
+        ),
+        discord.SelectOption(
+          label = "Guild Owner",
+          value = "guild.owner",
+          default = False
         )
       ]
     )
+    if guild.banner:
+      self.add_option(
+        label = "Guild Banner",
+        value = "guild.banner",
+        default = False
+      )
+    if guild.icon:
+      self.add_option(
+        label = "Guild Icon",
+        value = "guild.icon",
+        default = False
+      )
 
   async def callback(self, interaction : discord.Interaction):
     try:
+      await interaction.response.defer(
+        thinking = False,
+        ephemeral = False
+      )
       value = self.values[0]
+      for ind, option in enumerate(self.options):
+        if option.value != value:
+          self.options[ind].default = False
+        else:
+          self.options[ind].default = True
       if value == "guild.profile":
         embed = await get_profile(self.guild)
+        await interaction.edit_original_response(
+          embed = embed,
+          view = self.view
+        )
+      elif value == "guild.owner":
+        embed = await get_owner(interaction, self.guild.owner)
+        await interaction.edit_original_response(
+          embed = embed,
+          view = self.view
+        )
+      elif value == "guild.banner":
+        embed = await get_banner(self.guild)
+        await interaction.edit_original_response(
+          embed = embed,
+          view = self.view
+        )
+      elif value == "guild.icon":
+        embed = await get_icon(self.guild)
+        await interaction.edit_original_response(
+          embed = embed,
+          view = self.view
+        )
     except:
       traceback.print_exc()
 
