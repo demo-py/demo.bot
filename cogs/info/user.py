@@ -102,8 +102,7 @@ async def get_profile(interaction : discord.Interaction, member : discord.Member
     **Member** : {member.mention} {member_flags}
     **Account Created** : <t:{int(member.created_at.timestamp())}:R>
     **Member Joined** : <t:{int(member.joined_at.timestamp())}:R>
-    **Member Roles** : ` {len(member.roles):,} `{timed_out_until}
-    {custom_activity}
+    **Member Roles** : ` {len(member.roles):,} `{timed_out_until}{custom_activity}
     """,
     color = member.color
   ).set_thumbnail(
